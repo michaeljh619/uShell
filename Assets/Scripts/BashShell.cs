@@ -1,5 +1,5 @@
-﻿using System.Diagnostics;
-using UnityEngine;
+﻿using System;
+using System.Diagnostics;
 
 /// <summary>
 /// Represents a bash shell.
@@ -10,22 +10,26 @@ public class BashShell
     private readonly Process process;
     
     // Construction / Destruction
-    public BashShell()
+    public BashShell(string shellExecutablePath)
     {
-        var bashExePath = GetBashExePath();
+        // perform error checks on given shell executable path
+        TestShellPath(shellExecutablePath);
         
+        // create process
         process = new Process()
         {
             StartInfo = new ProcessStartInfo
             {
-                FileName = bashExePath,
+                FileName = shellExecutablePath,
                 RedirectStandardOutput = true,
+                RedirectStandardError = true,
                 RedirectStandardInput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             }
         };
         
+        // initialization
         process.Start();
         process.StandardInput.AutoFlush = true;
     }
@@ -48,18 +52,31 @@ public class BashShell
     }
     
     // public methods
-    public string ExecuteCommand(string cmd)
+    public CommandOutputData ExecuteCommand(string cmd)
     {
         // var escapedArgs = cmd.Replace("\"", "\\\"");
         var streamWriter = process.StandardInput;
         streamWriter.WriteLine(cmd);
+        streamWriter.Flush();
 
-        return process.StandardOutput.ReadToEnd();
+        var output = "";
+        while (process.StandardOutput.Peek() > -1)
+        {
+            output += process.StandardOutput.ReadLine();
+        }
+        
+        var error = "";
+        while (process.StandardOutput.Peek() > -1)
+        {
+            error += process.StandardOutput.ReadLine();
+        }
+        
+        return new CommandOutputData(output, error);
     }
-
-    // private static methods
-    private static string GetBashExePath()
+    
+    // private methods
+    private static void TestShellPath(string shellPath)
     {
-        return Application.dataPath + "/Plugins/EditorTerminal/bash.exe";
+        
     }
 }
